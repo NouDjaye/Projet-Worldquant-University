@@ -1,0 +1,302 @@
+
+OBJECTIFS : Prévoir les prix des appartements à Mexico a partir d'un model de marchine learning 
+## 🧠 Données et Modèle
+- Données issues d’une base immobilière de Mexico City.
+- Modèle utilisé : **régression linéaire**.
+- Objectif : prédire le prix des appartements en fonction du quartier.
+
+# Import libraries here
+import pandas as pd 
+from glob import glob
+import matplotlib.pyplot as plt
+import plotly.express as px
+from sklearn.metrics import mean_absolute_error
+from sklearn.linear_model import LinearRegression,Ridge
+from sklearn.pipeline import make_pipeline
+from sklearn.utils.validation import check_is_fitted
+from category_encoders import OneHotEncoder
+from sklearn.impute import SimpleImputer
+
+# Préparer les données 
+Importer 
+Tâche 2.5.1 : Écrire une wranglefonction qui prend le nom d'un fichier CSV en entrée et renvoie un DataFrame. La fonction doit effectuer les étapes suivantes :
+
+1- Sous-ensemble des données dans le fichier CSV et renvoie uniquement les appartements à Mexico ( "Distrito Federal") qui coûtent moins de 100 000 $.
+2- Supprimez les valeurs aberrantes en supprimant les 10 % inférieurs et supérieurs des propriétés en termes de "surface_covered_in_m2".
+3- Créez "lat"des "lon"colonnes séparées.
+4- Mexico est divisée en 15 arrondissements . Créez une "borough"entité à partir de la "place_with_parent_names"colonne.
+5- Supprimez les colonnes qui contiennent plus de 50 % de valeurs nulles.
+6- Supprimez les colonnes contenant des valeurs catégorielles à cardinalité faible ou élevée.
+7- Supprimez toutes les colonnes qui constitueraient une fuite pour la cible "price_aprox_usd".
+8- Supprimez toutes les colonnes qui pourraient créer des problèmes de multicolinéarité.
+
+# construction d'une fonction 
+# Build your `wrangle` function
+def wrangle(filepath):
+    df=pd.read_csv(filepath)
+    mask_apt=df["property_type"]=="apartment"
+    mask_ba=df["place_with_parent_names"].str.contains("Distrito Federal")
+    mask_prix=df["price_aprox_usd"]<100_000
+    df=df[mask_apt & mask_ba & mask_prix]
+    #suprimons les valeurs aberantes en réduisant de 10
+    low,high=df["surface_covered_in_m2"].quantile([0.1,0.9])
+    mask_area=df["surface_covered_in_m2"].between(low,high)
+    df=df[mask_area]
+    # split lat-lon columns 
+    df[["lat","lon"]]=df["lat-lon"].str.split(",",expand=True).astype(float)
+    df.drop(columns=["lat-lon"],inplace=True)
+    # borough of mexico
+    df["borough"]=df["place_with_parent_names"].str.split("|",expand=True)[1]
+    #drop columns above 50 NaN
+    df.drop(columns=["surface_total_in_m2","price_usd_per_m2","price","price_per_m2","operation"],inplace=True)
+    df.drop(columns=["floor","rooms","expenses","properati_url","currency","price_aprox_local_currency","property_type","place_with_parent_names"],inplace=True)
+    
+    return df 
+# Use this cell to test your wrangle function and explore the data
+df=wrangle("data/mexico-city-real-estate-1.csv")
+df.head()
+df.info()
+#resultats 
+<class 'pandas.core.frame.DataFrame'> 
+Int64Index : 1 101 entrées, 11 à 4 605 
+Colonnes de données (13 colonnes au total) : 
+ # Colonne Nombre non nul Type de données   
+--- ------ -------------- -----   
+ 0 opération 1 101 objet non nul 
+ 1 type_de_propriété 1 101 objet non nul 
+ 2 nom_de_l'emplacement_avec_les_parents 1 101 objet non nul 
+ 3 prix 1 101 float64 non nul 
+ 4 devise 1 101 objet non nul 
+ 5 prix_environ_devise_locale 1 101 float64 non nul 
+ 6 prix_environ_usd 1 101 float64 non nul 
+ 7 surface_couverte_en_m2 1 101 float64 non nul 
+ 8 prix_au_m2 1 101 float64 non nul 
+ 9 url_propriété 1101 objet non nul 
+ 10 lat 1041 float64 non nul 
+ 11 ​​lon 1041 float64 non nul 
+ 12 borough 1101 objet non nul 
+dtypes : float64(7), object(6) 
+utilisation de la mémoire : 120,4 Ko ou plus
+
+# Tâche 2.5.2 : Utiliser glob pour créer la liste files. Elle doit contenir les noms de tous les fichiers CSV immobiliers de Mexico du ./datarépertoire, à l'exception de mexico-city-test-features.csv.
+files=glob("./data/mexico-city-real-estate-*.csv")
+files
+# Tâche 2.5.3 : Combinez votre wranglefonction, une liste de compréhension et pd.concatun DataFrame df. Ce dernier doit contenir toutes les propriétés des cinq fichiers CSV files.
+frames =[wrangle(file) for file in files]
+df=pd.concat(frames,ignore_index=True)
+
+print(df.info())
+df.head()
+
+# Explorer ¶
+Tâche 2.5.4 : Créez un histogramme montrant la distribution des prix des appartements ( "price_aprox_usd") dans df. Assurez-vous d'étiqueter l'axe des x "Price [$]", l'axe des y "Count"et de lui donner le titre "Distribution of Apartment Prices". Utilisez Matplotlib ( plt).
+# Build histogram
+plt.hist(df["price_aprox_usd"])
+
+
+# Label axes
+plt.xlabel("Price [$]")
+plt.ylabel("Count")
+
+# Add title
+plt.title("Distribution of Apartment Prices")
+
+# Don't delete the code below 👇
+plt.savefig("images/2-5-4.png", dpi=150)
+
+Tâche 2.5.5 : Créez un nuage de points qui montre le prix de l'appartement ( "price_aprox_usd") en fonction de la taille de l'appartement ( "surface_covered_in_m2"). Assurez-vous d'étiqueter vos axes x "Area [sq meters]"et y "Price [USD]". Votre graphique doit avoir le titre "Mexico City: Price vs. Area". Utilisez Matplotlib ( plt).
+# Build scatter plot
+plt.scatter(df["surface_covered_in_m2"],df["price_aprox_usd"])
+
+
+# Label axes
+plt.xlabel("Area [sq meters]")
+plt.ylabel("Price [USD]")
+
+# Add title
+plt.title("Mexico City: Price vs. Area")
+
+# Don't delete the code below 👇
+plt.savefig("images/2-5-5.png", dpi=150)
+
+# Tâche 2.5.6 : (NON NOTÉ) Créez un nuage de points Mapbox qui montre l’emplacement des appartements dans votre ensemble de données et représentez leur prix à l’aide de couleurs.
+
+Quels quartiers de la ville semblent avoir des prix immobiliers plus élevés ?
+
+# Plot Mapbox location and price
+fig = px.scatter_mapbox(
+    df,
+    lat="lat",
+    lon="lon",
+    center={"lat": 19.43, "lon": -99.13},
+    width=600,  # Width of map
+    height=600,  # Height of map
+    hover_data=["price_aprox_usd"],
+    
+)
+fig.update_layout(mapbox_style="open-street-map")
+
+fig.show()
+
+# Diviser 
+Tâche 2.5.7 : Créez votre matrice de caractéristiques X_trainet votre vecteur cible y_train. Votre cible est "price_aprox_usd". Vos caractéristiques doivent correspondre à toutes les colonnes restantes du DataFrame nettoyé ci-dessus.
+# Split data into feature matrix `X_train` and target vector `y_train`.
+target="price_aprox_usd"
+features=["borough","surface_covered_in_m2","lat","lon"]
+X_train = df[features]
+y_train = df[target]
+
+# Modèle de construction 
+Ligne de base 
+Tâche 2.5.8 : Calculez l’erreur absolue moyenne de base pour votre modèle.
+y_mean = y_train.mean()
+y_pred_baseline =[y_mean]*len(y_train)
+baseline_mae =mean_absolute_error(y_train , y_pred_baseline)
+print("Mean apt price:", y_mean)
+print("Baseline MAE:", baseline_mae)
+# Resultats 
+Prix ​​moyen d'un appartement : 54246,5314982642 
+MAE de base : 17239,939475888295
+Cela signifie que :
+Si tu prédis toujours le prix moyen (54 246 USD) pour tous les appartements,
+Tu feras en moyenne une erreur de ±17 239 USD.
+
+# Tâche 2.5.9 : Créez un pipeline nommé modelcontenant tous les transformateurs nécessaires à cet ensemble de données et l'un des prédicteurs utilisés au cours de ce projet. Adaptez ensuite votre modèle aux données d'apprentissage.
+ohe =OneHotEncoder(use_cat_names=True)
+ohe.fit(X_train)
+XT_train =ohe.transform(X_train)
+print(XT_train.shape)
+XT_train.head()
+
+# # Build Model
+model = make_pipeline(
+    OneHotEncoder(use_cat_names=True),
+    SimpleImputer(),
+    Ridge(),
+    
+)
+# Fit model
+model.fit(X_train,y_train)
+# resultats 
+Pipeline(étapes=[('onehotencoder', 
+                 OneHotEncoder(cols=['borough'], use_cat_names=True)), 
+                ('simpleimputer', SimpleImputer()), ('ridge', Ridge())])
+
+# Évaluer 
+Tâche 2.5.10 : Lire le fichier CSV mexico-city-test-features.csvdans le DataFrame X_test.
+X_test = pd.read_csv("data/mexico-city-test-features.csv")[features]
+print(X_test.info())
+X_test.head()
+<class 'pandas.core.frame.DataFrame'> 
+RangeIndex : 1 041 entrées, de 0 à 1 040 
+Colonnes de données (4 colonnes au total) : 
+ # Colonne Nombre non nul Type de données   
+--- ------ -------------- -----   
+ 0 borough 1 041 objet non nul 
+ 1 surface_covered_in_m2 1 041 float64 non nul 
+ 2 lat 986 float64 non nul 
+ 3 lon 986 float64 non nul 
+Types de données : float64(3), object(1) 
+Utilisation de la mémoire : 32,7 Ko et 
+plus Aucun
+
+# Tâche 2.5.11 : Utilisez votre modèle pour générer une série de prédictions pour X_test. 
+Lorsque vous soumettez vos prédictions à l'évaluateur, celui-ci calcule l'erreur absolue moyenne de votre modèle.
+y_test_pred = pd.Series(model.predict(X_test))
+y_test_pred.head()
+y_test_pred = pd.Series(model.predict(X_test))
+y_test_pred.head()
+0 53538.366480 
+1 53171.988369 
+2 34263.884179 
+3 53488.425607 
+4 68738.924884 
+type de données : float64
+
+# Communiquer les résultats 
+Tâche 2.5.12 : Créer une série nommée feat_imp. L'index doit contenir les noms de toutes les entités prises en compte par votre modèle pour ses prédictions ; 
+les valeurs doivent correspondre aux coefficients associés à chaque entité. La série doit être triée par ordre croissant de valeur absolue.
+arrondissement_Benito Juárez 13778.188880 
+arrondissement_Tlalpan 10319.429804 
+arrondissement_Iztapalapa -13349.017448 
+arrondissement_Gustavo A. Madero -6637.429757 
+arrondissement_Venustiano Carranza -5609.918629 
+arrondissement_Iztacalco 405.403127 
+arrondissement_Coyoacán 3737.561001 
+arrondissement_Cuauhtémoc -350.531990 
+arrondissement_Miguel Hidalgo 1977.314718 
+arrondissement_Azcapotzalco 2459.288646 
+arrondissement_Tláhuac -14166.869486 
+arrondissement_Álvaro Obregón 3275.121061 
+borough_La Magdalena Contreras -5925.666450 
+borough_Xochimilco 929.857400 
+borough_Cuajimalpa de Morelos 9157.269123 
+surface_couverte_en_m2 291.654156 
+lat 478.901375 
+lon -2492.221814 
+dtype: float64
+
+# Tâche 2.5.13 : Créez un graphique à barres horizontales présentant les 10 coefficients les plus influents de votre modèle.
+N'oubliez pas d'étiqueter vos axes x "Importance [USD]"et y "Feature"respectivement et de donner à votre graphique le titre "Feature Importances for Apartment Price".
+Utilisez pandas.
+# Build bar chart
+feat_imp.sort_values(key=abs).tail(10).plot(kind="barh")
+
+
+# Label axes
+plt.xlabel("Impotance [USD]")
+plt.ylabel("Feature")
+
+# Add title
+plt.title("Feature Importance for Apartment Price");
+
+# Don't delete the code below 👇
+plt.savefig("images/2-5-13.png", dpi=150)
+
+
+🔍 Analyse de l'importance des variables
+✅ Lecture générale :
+- Chaque barre représente l’effet moyen (positif ou négatif) qu’un quartier a sur le prix d’un appartement par rapport à une base de référence.
+
+- Plus la valeur est grande (positivement ou négativement), plus le quartier influence le prix.
+
+📈 Quartiers avec effet POSITIF sur le prix
+
+Quartier	Impact estimé
+Benito Juárez	+13 000 USD
+Tlalpan	+10 000 USD
+Cuajimalpa de Morelos	+9 500 USD
+Coyoacán	+3 000 USD
+Álvaro Obregón	+3 000 USD
+🔥 Ces quartiers ajoutent de la valeur au prix de l’appartement. Cela peut s'expliquer par :
+
+Leur attractivité économique ou résidentielle
+
+Une meilleure qualité de vie
+
+Proximité des services, écoles, transports…
+
+📉 Quartiers avec effet NÉGATIF sur le prix
+
+Quartier	Impact estimé
+Iztapalapa	-13 000 USD
+Tláhuac	-12 000 USD
+Gustavo A. Madero	-5 000 USD
+La Magdalena Contreras	-5 000 USD
+Venustiano Carranza	-5 000 USD
+❌ Ces quartiers réduisent le prix moyen des appartements. Cela peut être dû à :
+
+Un niveau de vie plus bas
+
+Moins d'infrastructures ou de sécurité
+
+Moins d’opportunités professionnelles ou commerciales
+
+🧠 Interprétation stratégique
+Si un investisseur veut acheter pour revendre, il pourrait privilégier Benito Juárez, Tlalpan ou Cuajimalpa.
+
+Pour des programmes sociaux ou logements abordables, des quartiers comme Iztapalapa ou Tláhuac sont plus accessibles.
+
+
+
+
