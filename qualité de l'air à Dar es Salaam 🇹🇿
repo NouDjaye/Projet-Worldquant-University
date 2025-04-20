@@ -1,0 +1,155 @@
+OBJECTIFS : A l'aide d'un model AutoRegressif , nous devons predire la qualité de l'air à Dar es Salaam 🇹🇿
+
+# Preparatifs 
+# Imports nécessaires
+from pymongo import MongoClient
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+from pprint import PrettyPrinter
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.ar_model import AutoReg
+from sklearn.metrics import mean_absolute_error
+
+# Instancier le pretty printer
+pp = PrettyPrinter(indent=2)
+
+✅ Tâche 3.5.1 : Connexion à MongoDB
+python
+Copier
+Modifier
+client = MongoClient(host="localhost", port=27017)
+db = client["air-quality"]
+dar = db["dar-es-salaam"]
+
+for c in db.list_collections():
+    print(c["name"])
+
+
+✅ Tâche 3.5.2 : Lister les sites
+python
+Copier
+Modifier
+sites = dar.distinct("metadata.site")
+print(sites)
+
+
+✅ Tâche 3.5.3 : Site avec le plus de lectures
+python
+Copier
+Modifier
+result = dar.aggregate([
+    {"$group": {"_id": "$metadata.site", "count": {"$count": {}}}}
+])
+readings_per_site = list(result)
+print(readings_per_site)
+
+✅ Tâche 3.5.4 : Nettoyage des données avec la fonction wrangle
+python
+Copier
+Modifier
+def wrangle(collection):
+    # Extraire uniquement les données PM2.5
+    result = collection.find(
+        {"metadata.measurement": "P2"},
+        projection={"P2": 1, "timestamp": 1, "metadata.site": 1, "_id": 0}
+    )
+    
+    df = pd.DataFrame(result)
+
+    # Convertir timestamp
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df = df.set_index("timestamp")
+
+    # Extraire site
+    df["site"] = df["metadata"].apply(lambda m: m["site"])
+
+    # Trouver le site avec le plus de mesures
+    top_site = df["site"].value_counts().idxmax()
+
+    # Filtrer les données pour ce site
+    df = df[df["site"] == top_site]
+
+    # Nettoyer la colonne P2
+    def extract_p2_value(p2):
+        if isinstance(p2, dict):
+            return p2.get("value", None)
+        return p2
+    df["P2"] = df["P2"].apply(extract_p2_value)
+
+    # Créer la série temporelle
+    y = df["P2"].dropna()
+
+    # Localiser le fuseau horaire
+    y.index = y.index.tz_localize("UTC").tz_convert("Africa/Dar_es_Salaam")
+
+    # Supprimer les valeurs > 100
+    y = y[y < 100]
+
+    # Rééchantillonner (moyenne horaire)
+    y = y.resample("1H").mean()
+
+    # Imputer les valeurs manquantes
+    y = y.fillna(method="ffill")
+
+    return y
+
+# Utilisation de la fonction
+y = wrangle(dar)
+print(y.head())
+
+✅ Tâche 3.5.5 : Graphique de la série temporelle
+python
+Copier
+Modifier
+fig, ax = plt.subplots(figsize=(15, 6))
+y.plot(xlabel="Date", ylabel="PM2.5 Level", title="Dar es Salaam PM2.5 Levels", ax=ax)
+
+# Sauvegarder le graphique
+plt.savefig("images/3-5-5.png", dpi=150)
+
+✅ Tâche 3.5.6 : Corrélogramme (ACF & PACF)
+
+fig, ax = plt.subplots(nrows=2, figsize=(15, 8))
+
+plot_acf(y, lags=48, ax=ax[0])
+plot_pacf(y, lags=48, ax=ax[1])
+
+plt.tight_layout()
+plt.savefig("images/3-5-6.png", dpi=150)
+
+✅ Tâche 3.5.7 : Créer un jeu de test
+On découpe la série : 80% train / 20% test
+
+train = y[:int(0.8*len(y))]
+test = y[int(0.8*len(y)):]
+
+✅ Tâche 3.5.8 : Ajuster un modèle AutoRegression (AR)
+
+model = AutoReg(train, lags=24).fit()
+print(model.summary())
+
+
+✅ Tâche 3.5.9 : Prédire et évaluer
+
+y_pred = model.predict(start=test.index[0], end=test.index[-1])
+
+# Calcul de l'erreur MAE
+mae = mean_absolute_error(test, y_pred)
+print(f"MAE: {mae:.2f}")
+
+✅ Tâche 3.5.10 : Affichage des prédictions vs réalité
+
+fig, ax = plt.subplots(figsize=(15, 6))
+train.plot(ax=ax, label="Train")
+test.plot(ax=ax, label="Test")
+y_pred.plot(ax=ax, label="Predicted")
+
+ax.set_title("Dar es Salaam PM2.5 Forecast")
+ax.set_ylabel("PM2.5")
+ax.set_xlabel("Date")
+ax.legend()
+
+plt.savefig("images/3-5-10.png", dpi=150)
