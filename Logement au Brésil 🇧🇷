@@ -1,0 +1,170 @@
+vous travaillerez sur un ensemble de données de maisons à vendre au Brésil. Votre objectif est de déterminer s'il existe des différences régionales sur le marché immobilier. Vous étudierez également le sud du Brésil pour déterminer s'il existe une relation entre la taille et le prix des maisons, similaire à ce que vous avez observé pour l'immobilier dans certains États du Mexique.
+# # Import Matplotlib, pandas, and plotly
+import pandas as pd 
+import matplotlib.pyplot as plt 
+import plotly.express as px 
+
+#Préparer les données 
+Tâche 1.5.1 : Importer le fichier CSV data/brasil-real-estate-1.csvdans le DataFrame df1.
+df1 =pd.read_csv("data/brasil-real-estate-1.csv")
+df1.head()
+
+#Avant de passer à la tâche suivante, prenez un moment pour inspecter df1les données à l'aide des infométhodes et head. Quels problèmes constatez-vous dans les données ? Quel nettoyage devrez-vous effectuer avant de pouvoir effectuer votre analyse ?
+df.info()
+# resultats 
+0 property_type 12834 objet non nul
+ 1 place_with_parent_names 12834 objet non nul
+ 2 région 12834 objet non nul
+ 3 lat-lon 11551 objet non nul
+ 4 area_m2 12834 non nul float64
+ 5 prix_usd 12834 objet non nul
+dtypes : float64(1), objet(5)
+utilisation de la mémoire : 601,7 Ko et plus
+
+# Tâche 1.5.2 : supprimer toutes les lignes contenant NaNdes valeurs du DataFrame df1.
+df1.dropna(inplace=True) 
+#Tâche 1.5.3 : Utilisez la "lat-lon"colonne pour créer deux colonnes distinctes dansdf1 : "lat"et "lon". Assurez-vous que le type de données de ces nouvelles colonnes est float.
+# Tâche 1.5.4 : Utilisez la "place_with_parent_names"colonne pour créer une "state"colonne pour df1. (Notez que le nom de l'état apparaît toujours après "|Brasil|"dans chaque chaîne.)
+df1["state"]=df1["place_with_parent_names"].str.split("|",expand=True)[2]
+df1[["lat" , "lon"]]=df1["lat-lon"].str.split(",", expand=True).astype(float)
+# Tâche 1.5.5 : Transformez la "price_usd"colonne de df1 sorte que toutes les valeurs soient des nombres à virgule flottante au lieu de chaînes.
+df1["price_usd"]=df1["price_usd"].str.replace("$","",regex=False).str.replace(",","").astype(float)
+# Tâche 1.5.6 : Supprimez les colonnes "lat-lon"et de ."place_with_parent_names"df1
+df1.drop(columns=["lat-lon","place_with_parent_names"],inplace=True)
+#Tâche 1.5.7 : Importer le fichier CSV brasil-real-estate-2.csvdans le DataFrame df2.
+df2 = pd.read_csv("data/brasil-real-estate-2.csv")
+df2.head() 
+df2.info()
+# Resultats 
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 12833 entries, 0 to 12832
+Data columns (total 7 columns):
+ #   Column         Non-Null Count  Dtype  
+---  ------         --------------  -----  
+ 0   property_type  12833 non-null  object 
+ 1   state          12833 non-null  object 
+ 2   region         12833 non-null  object 
+ 3   lat            12833 non-null  float64
+ 4   lon            12833 non-null  float64
+ 5   area_m2        11293 non-null  float64
+ 6   price_brl      12833 non-null  float64
+dtypes: float64(4), object(3)
+
+# Tâche 1.5.8 : Utilisez la "price_brl"colonne pour créer une nouvelle colonne nommée "price_usd". (Gardez à l'esprit que, lorsque ces données ont été collectées en 2015 et 2016, un dollar américain coûtait 3,19 réaux brésiliens.)
+df2["price_usd"]=df2["price_brl"] /3.19
+#Tâche 1.5.9 : Supprimez la "price_brl"colonne de df2, ainsi que toutes les lignes contenant NaNdes valeurs.
+df2.dropna(inplace=True)
+df2.drop(columns=["price_brl"],inplace=True)
+# Tâche 1.5.10 : Concaténer df1et df2créer un nouveau DataFrame nommé df.
+df = pd.concat([df1 , df2])
+print("df shape:", df.shape)
+forme df : (22844, 7)
+# Explorer 
+Il est temps d'explorer vos données. Dans cette section, vous utiliserez vos nouvelles compétences en visualisation de données pour en savoir plus sur les différences régionales du marché immobilier brésilien.
+
+Complétez le code ci-dessous pour créer un scatter_mapboxaffichant l'emplacement des propriétés dans df.
+fig = px.scatter_mapbox(
+    df,
+    lat="lat",
+    lon="lon",
+    center={"lat": -14.2, "lon": -51.9},  # Map will be centered on Brazil
+    width=600,
+    height=600,
+    hover_data=["price_usd"],  # Display price when hovering mouse over house
+)
+
+fig.update_layout(mapbox_style="open-street-map")
+
+fig.show()
+#Tâche 1.5.11 : utilisez la describe méthode pour créer un DataFrame summary_stats avec les statistiques récapitulatives pour les colonnes "area_m2"et ."price_usd"
+summary_stats = df[["area_m2","price_usd"]].describe()
+summary_stats
+# Tâche 1.5.12 : Créez un histogramme de "price_usd". Assurez-vous que l'axe des x a l'étiquette "Price [USD]", l'axe des y a l'étiquette "Frequency"et le tracé a le titre "Distribution of Home Prices". Utilisez Matplotlib( plt).
+# Build histogram
+plt.hist(df["price_usd"])
+
+
+# Label axes
+plt.xlabel("Price [USD]")
+plt.ylabel("Frequency")
+# Add title
+plt.title("Distribution of Home Prices")
+
+# Don't change the code below 👇
+plt.savefig("images/1-5-12.png", dpi=150)
+
+# Tâche 1.5.13 : Créer un diagramme en boîte horizontal de "area_m2". S'assurer que l'axe des x porte l'étiquette "Area [sq meters]"et que le tracé porte le titre "Distribution of Home Sizes". Utiliser Matplotlib( plt).
+# Build box plot
+plt.boxplot(df["area_m2"],vert=False)
+
+ 
+# Label x-axis
+plt.xlabel("Area [sq meters]")
+
+# Add title
+plt.title("Distribution of Home Sizes")
+# Don't change the code below 👇
+plt.savefig("images/1-5-13.png", dpi=150)
+
+# Tâche 1.5.14 : Utilisez la groupbyméthode pour créer une série nommée mean_price_by_regionqui montre le prix moyen des maisons dans chaque région du Brésil, trié du plus petit au plus grand.
+mean_price_by_region=df.groupby("region")["price_usd"].mean().sort_values(ascending=True)
+mean_price_by_region
+
+# Tâche 1.5.15 : Utiliser mean_price_by_regionpour créer un graphique à barres. Assurez-vous d'étiqueter l'axe des abscisses comme « x » "Region"et l'axe des ordonnées comme « y » "Mean Price [USD]", et de donner au graphique le titre « » "Mean Home Price by Region". Utilisez pandas.
+# Build bar chart, label axes, add title
+mean_price_by_region.plot(
+    kind="bar",
+    xlabel="state",
+    ylabel="Mean Price [USD]",
+    title="Mean Home Price by Region"
+);
+
+# Don't change the code below 👇
+plt.savefig("images/1-5-15.png", dpi=150)
+
+# Tâche 1.5.16 : Créer un DataFrame df_southcontenant toutes les maisons dfsituées dans la "South"région.
+df_south =df[ df["region"]=="South" ]
+df_south.head()
+# Tâche 1.5.17 : Utilisez la value_countsméthode pour créer une série homes_by_statecontenant le nombre de propriétés dans chaque état dans df_south.
+homes_by_state = df_south["state"].value_counts()
+homes_by_state
+
+# Tâche 1.5.18 : Créez un nuage de points illustrant le prix par rapport à la superficie de l'État df_southcomptant le plus grand nombre de propriétés. Assurez-vous d'étiqueter les axes des x "Area [sq meters]"et des y "Price [USD]"et d'utiliser le titre "<name of state>: Price vs. Area". Utilisez Matplotlib( plt).
+# Subset data
+df_south_rgs = df_south[df_south["state"]=="Rio Grande do Sul"] 
+
+# Build scatter plot
+plt.scatter(x=df_south_rgs["area_m2"] , y=df_south_rgs["price_usd"])
+
+
+# Label axes
+plt.xlabel("Area [sq meters]")
+plt.ylabel("Price [USD]")
+
+# Add title
+plt.title("Rio Grande do Sul: Price vs. Area")
+
+# Don't change the code below 👇
+plt.savefig("images/1-5-18.png", dpi=150)
+
+# Tâche 1.5.19 : Créer un dictionnaire south_states_corr, où les clés sont les noms des trois États de la "South"région du Brésil, et leurs valeurs associées sont le coefficient de corrélation entre "area_m2"et "price_usd"dans cet État.
+df_south_rgs1 = df_south[df_south["state"]=="Paraná"]
+df_south_rgs2 = df_south[df_south["state"]=="Santa Catarina"]
+south_states_corr= {
+    'Paraná':df_south_rgs1["area_m2"].corr(df_south_rgs1["price_usd"]),
+    'Santa Catarina':df_south_rgs2["area_m2"].corr(df_south_rgs2["price_usd"]),
+    'Rio Grande do Sul':df_south_rgs["area_m2"].corr(df_south_rgs["price_usd"]),
+}
+south_states_corr
+
+# Conclusion 
+l'objectif de cette étude est : d'etudier pour voir si il existe une relation entre le prix d'une maison et la surface 
+
+Analyse : 
+Globalement, plus la surface augmente, plus le prix tend à augmenter, mais cette relation n’est pas linéaire ni très forte.
+
+Il y a beaucoup de dispersion verticale, surtout entre 75 m² et 150 m² : cela signifie que des biens de même taille peuvent coûter très différemment selon d’autres critères (quartier, état du bien, nombre de pièces, etc.).
+Conclusion : 
+Oui, il existe une relation entre la surface et le prix, mais elle n’est pas très forte.
+
+ D'autres facteurs jouent un rôle crucial dans la formation du prix.
